@@ -1,0 +1,191 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+)
+
+type Satellite struct {
+	ObjectName         string  `json:"OBJECT_NAME"`
+	ObjectID           string  `json:"OBJECT_ID"`
+	Epoch              string  `json:"EPOCH"`
+	MeanMotion         float64 `json:"MEAN_MOTION"`
+	Eccentricity       float64 `json:"ECCENTRICITY"`
+	Inclination        float64 `json:"INCLINATION"`
+	RaOfAscNode        float64 `json:"RA_OF_ASC_NODE"`
+	ArgOfPericenter    float64 `json:"ARG_OF_PERICENTER"`
+	MeanAnomaly        float64 `json:"MEAN_ANOMALY"`
+	EphemerisType      int     `json:"EPHEMERIS_TYPE"`
+	ClassificationType string  `json:"CLASSIFICATION_TYPE"`
+	NORADCatID         int     `json:"NORAD_CAT_ID"`
+	ElementSetNo       int     `json:"ELEMENT_SET_NO"`
+	RevAtEpoch         int     `json:"REV_AT_EPOCH"`
+	BSTAR              float64 `json:"BSTAR"`
+	MeanMotionDot      float64 `json:"MEAN_MOTION_DOT"`
+	MeanMotionDDot     float64 `json:"MEAN_MOTION_DDOT"`
+}
+
+var satellite Satellite
+var satellites []Satellite
+var watchlist []Satellite
+
+func lookUpSatellite() {
+	fmt.Print("Enter NORAD catalog ID: ")
+
+	var input string
+	fmt.Scanln(&input)
+
+	input = strings.TrimSpace(input)
+
+	id, err := strconv.Atoi(input)
+	if err != nil || id <= 0 {
+		fmt.Println("Enter a valid NORAD ID")
+		return
+	}
+
+	url := fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=JSON", id)
+
+	client := http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	response, err := client.Get(url)
+	if err != nil {
+		fmt.Println("Could not contact CelesTrak: ", err)
+		return
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		fmt.Printf("CelesTrak returned HTTP status %d. \n", response.StatusCode)
+		fmt.Println("No Satellite data was retrieved")
+		return
+	}
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		fmt.Println("Could not read response body: ", err)
+		return
+	}
+
+	err = json.Unmarshal(body, &satellites)
+	if err != nil {
+		fmt.Println("Could not interpret the satellite data: ", err)
+		return
+	}
+
+	if len(satellites) == 0 {
+		fmt.Println("No satellite data found.")
+		return
+	}
+
+	satellite = satellites[0]
+
+	displaySatellite(satellite)
+}
+
+func displaySatellite(s Satellite) {
+	fmt.Println("Satellite Details")
+	fmt.Println("Object Name:", s.ObjectName)
+	fmt.Println("Object ID:", s.ObjectID)
+	fmt.Println("Epoch:", s.Epoch)
+	fmt.Println("Mean Motion:", s.MeanMotion)
+	fmt.Println("Eccentricity:", s.Eccentricity)
+	fmt.Println("Inclination:", s.Inclination)
+	fmt.Println("RA Of Ascending Node:", s.RaOfAscNode)
+	fmt.Println("Argument of Pericenter:", s.ArgOfPericenter)
+	fmt.Println("Mean Anomaly:", s.MeanAnomaly)
+	fmt.Println("Ephemeris Type:", s.EphemerisType)
+	fmt.Println("Classification Type:", s.ClassificationType)
+	fmt.Println("NORAD CATALOG ID:", s.NORADCatID)
+	fmt.Println("Element Set Number:", s.ElementSetNo)
+	fmt.Println("Revolution at Epoch:", s.RevAtEpoch)
+	fmt.Println("BSTAR:", s.BSTAR)
+	fmt.Println("Mean Motion Derivative:", s.MeanMotionDot)
+	fmt.Println("Second Mean Motion Derivative:", s.MeanMotionDDot)
+	fmt.Println()
+}
+
+func viewWatchlist() {
+	fmt.Println("0. Back to main menu")
+	for i, s := range watchlist {
+		fmt.Printf("%d. %s\n", i+1, s.ObjectName)
+	}
+	fmt.Println()
+	var satelliteNumber int
+	fmt.Print("Choose an option:")
+	fmt.Scanln(&satelliteNumber)
+	clearTerminal()
+	if satelliteNumber < 1 || satelliteNumber > len(watchlist) {
+		if satelliteNumber != 0{
+			fmt.Println("Invalid option")
+		}
+		return
+	} else {
+		displaySatellite(watchlist[satelliteNumber-1])
+	}
+
+	fmt.Println()
+}
+
+func clearTerminal() {
+	fmt.Print("\033[H\033[2J\033[3J")
+}
+
+func main() {
+	for {
+		fmt.Println("-------------------")
+		fmt.Println(" Satellite Tracker")
+		fmt.Println("-------------------")
+
+		fmt.Println("1. Look up a satellite")
+		fmt.Println("2. View watchlist")
+		fmt.Println("3. Exit")
+		if satellite.ObjectName != "" {
+			alreadyExists := false
+			for _, s := range watchlist {
+				if s.NORADCatID == satellite.NORADCatID {
+					alreadyExists = true
+					break
+				}
+			}
+			if !alreadyExists {
+				fmt.Printf("4. Add %s to watchlist\n", satellite.ObjectName)
+			}
+		}
+		fmt.Println()
+		fmt.Print("Choose an option: ")
+
+		var choice string
+		fmt.Scanln(&choice)
+		clearTerminal()
+
+		if choice == "1" {
+			lookUpSatellite()
+		} else if choice == "2" {
+			viewWatchlist()
+		} else if choice == "3" {
+			fmt.Println("Goodbye")
+			return
+		} else if choice == "4" && satellite.ObjectName != ""{
+			alreadyExists := false
+			for _, s := range watchlist {
+				if s.NORADCatID == satellite.NORADCatID {
+					alreadyExists = true
+					break
+				}
+			}
+			if !alreadyExists {
+				watchlist = append(watchlist, satellite)
+				fmt.Printf("%s added to watchlist\n\n", satellite.ObjectName)
+			}
+		} else {
+			fmt.Println("Invalid option")
+		}
+	}
+}
