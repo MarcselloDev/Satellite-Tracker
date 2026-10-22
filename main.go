@@ -114,13 +114,16 @@ func displaySatellite(s Satellite) {
 }
 
 func viewWatchlist() {
+	fmt.Println("-------------------")
+	fmt.Println(" Satellite Tracker")
+	fmt.Println("-------------------")
 	fmt.Println("0. Back to main menu")
 	for i, s := range watchlist {
 		fmt.Printf("%d. %s\n", i+1, s.ObjectName)
 	}
 	fmt.Println()
 	var satelliteNumber int
-	fmt.Print("Choose an option:")
+	fmt.Print("Choose an option: ")
 	fmt.Scanln(&satelliteNumber)
 	clearTerminal()
 	if satelliteNumber < 1 || satelliteNumber > len(watchlist) {
@@ -129,7 +132,26 @@ func viewWatchlist() {
 		}
 		return
 	} else {
-		displaySatellite(watchlist[satelliteNumber-1])
+		fmt.Printf("Selected Satellite: %s (%d)\n", watchlist[satelliteNumber-1].ObjectName, watchlist[satelliteNumber-1].NORADCatID)
+		fmt.Println("1. View details")
+		fmt.Println("2. Remove from watchlist")
+		fmt.Println("3. Back to main menu")
+		var choice string
+		fmt.Print("\nChoose an option: ")
+		fmt.Scanln(&choice)
+		clearTerminal()
+		if choice == "1" {
+			displaySatellite(watchlist[satelliteNumber-1])
+			viewWatchlist()
+		} else if choice == "2" {
+			watchlist = append(watchlist[:satelliteNumber-1], watchlist[satelliteNumber:]...)
+			saveWatchlist()
+		} else if choice == "3" {
+			return
+		} else {
+			fmt.Println("Invalid option")
+			return
+		}
 	}
 
 	fmt.Println()
