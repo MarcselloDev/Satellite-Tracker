@@ -36,20 +36,7 @@ var satellite Satellite
 var satellites []Satellite
 var watchlist []Satellite
 
-func lookUpSatellite() {
-	fmt.Print("Enter NORAD catalog ID: ")
-
-	var input string
-	fmt.Scanln(&input)
-
-	input = strings.TrimSpace(input)
-
-	id, err := strconv.Atoi(input)
-	if err != nil || id <= 0 {
-		fmt.Println("Enter a valid NORAD ID")
-		return
-	}
-
+func lookUpSatellite(id int) {
 	url := fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=JSON", id)
 
 	client := http.Client{
@@ -145,7 +132,12 @@ func viewWatchlist() {
 		fmt.Scanln(&choice)
 		clearTerminal()
 		if choice == "1" {
-			displaySatellite(watchlist[satelliteNumber-1])
+			id := watchlist[satelliteNumber-1].NORADCatID
+			lookUpSatellite(id)
+			if satellite.NORADCatID == id {
+				watchlist[satelliteNumber-1] = satellite
+				saveWatchlist()
+			}
 			viewWatchlist()
 		} else if choice == "2" {
 			watchlist = append(watchlist[:satelliteNumber-1], watchlist[satelliteNumber:]...)
@@ -213,7 +205,19 @@ func main() {
 		clearTerminal()
 
 		if choice == "1" {
-			lookUpSatellite()
+			fmt.Print("Enter NORAD catalog ID: ")
+
+			var input string
+			fmt.Scanln(&input)
+
+			input = strings.TrimSpace(input)
+
+			id, err := strconv.Atoi(input)
+			if err != nil || id <= 0 {
+				fmt.Println("Enter a valid NORAD ID")
+				return
+			}
+			lookUpSatellite(id)
 		} else if choice == "2" {
 			viewWatchlist()
 		} else if choice == "3" {
