@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -133,11 +135,28 @@ func viewWatchlist() {
 	fmt.Println()
 }
 
+func saveWatchlist() {
+	data, err := json.MarshalIndent(watchlist, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := os.WriteFile("watchlist.json", data, 0644); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func clearTerminal() {
 	fmt.Print("\033[H\033[2J\033[3J")
 }
 
 func main() {
+	data, err := os.ReadFile("watchlist.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := json.Unmarshal(data, &watchlist); err != nil {
+		log.Fatal(err)
+	}
 	for {
 		fmt.Println("-------------------")
 		fmt.Println(" Satellite Tracker")
@@ -182,6 +201,7 @@ func main() {
 			}
 			if !alreadyExists {
 				watchlist = append(watchlist, satellite)
+				saveWatchlist()
 				fmt.Printf("%s added to watchlist\n\n", satellite.ObjectName)
 			}
 		} else {
