@@ -114,6 +114,10 @@ func displaySatellite(s Satellite) {
 }
 
 func viewWatchlist() {
+	if len(watchlist) == 0 {
+		fmt.Println("Watchlist is empty")
+		return
+	}
 	fmt.Println("-------------------")
 	fmt.Println(" Satellite Tracker")
 	fmt.Println("-------------------")
@@ -174,9 +178,11 @@ func clearTerminal() {
 func main() {
 	data, err := os.ReadFile("watchlist.json")
 	if err != nil {
-		log.Fatal(err)
-	}
-	if err := json.Unmarshal(data, &watchlist); err != nil {
+		if !os.IsNotExist(err) {
+			log.Fatal(err)
+		}
+		watchlist = []Satellite{}
+	} else if err := json.Unmarshal(data, &watchlist); err != nil {
 		log.Fatal(err)
 	}
 	for {
