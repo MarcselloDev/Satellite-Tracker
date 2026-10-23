@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -36,9 +35,9 @@ var satellite Satellite
 var satellites []Satellite
 var watchlist []Satellite
 
-func lookUpSatellite(id int) {
-	url := fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=JSON", id)
-
+func lookUpSatellite(url string) {
+	clearTerminal()
+	fmt.Println("Fetching satellite data...")
 	client := http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -72,10 +71,26 @@ func lookUpSatellite(id int) {
 		fmt.Println("No satellite data found.")
 		return
 	}
-
-	satellite = satellites[0]
-
-	displaySatellite(satellite)
+	if len(satellites) == 1 {
+		satellite = satellites[0]
+		clearTerminal()
+		displaySatellite(satellite)
+	} else {
+		for i, s := range satellites {
+			fmt.Printf("%d. %s, (%d)\n", i+1, s.ObjectName, s.NORADCatID)
+		}
+			fmt.Print("\nChoose a satellite: ")
+			var choice int
+			fmt.Scanln(&choice)
+			if choice < 1 || choice > len(satellites) {
+				fmt.Println("Invalid option")
+				return
+			}
+			satellite = satellites[choice-1]
+			clearTerminal()
+			displaySatellite(satellite)
+			
+	}
 }
 
 func displaySatellite(s Satellite) {
@@ -133,7 +148,7 @@ func viewWatchlist() {
 		clearTerminal()
 		if choice == "1" {
 			id := watchlist[satelliteNumber-1].NORADCatID
-			lookUpSatellite(id)
+			lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=JSON", id))
 			if satellite.NORADCatID == id {
 				watchlist[satelliteNumber-1] = satellite
 				saveWatchlist()
@@ -156,10 +171,12 @@ func viewWatchlist() {
 func saveWatchlist() {
 	data, err := json.MarshalIndent(watchlist, "", "  ")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return
 	}
 	if err := os.WriteFile("watchlist.json", data, 0644); err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return
 	}
 }
 
@@ -167,15 +184,39 @@ func clearTerminal() {
 	fmt.Print("\033[H\033[2J\033[3J")
 }
 
+func searchForSatellite(searchType string) {
+	if searchType == "NoradID" {
+		fmt.Print("Enter NORAD catalog ID: ")
+	} else if searchType == "Name" {
+		fmt.Print("Enter satellite name: ")
+	}
+	var input string
+	fmt.Scanln(&input)
+
+	input = strings.TrimSpace(input)
+	if searchType == "NoradID" {
+		id, err := strconv.Atoi(input)
+		if err != nil || id <= 0 && searchType == "NoradID" {
+			fmt.Println("Enter a valid NORAD ID")
+			return
+		}
+		lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=JSON", id))
+	} else if searchType == "Name" {
+		lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?NAME=%s&FORMAT=JSON", input))
+	}
+}
+
 func main() {
 	data, err := os.ReadFile("watchlist.json")
 	if err != nil {
 		if !os.IsNotExist(err) {
-			log.Fatal(err)
+			fmt.Println(err)
+			return
 		}
 		watchlist = []Satellite{}
 	} else if err := json.Unmarshal(data, &watchlist); err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return
 	}
 	for {
 		fmt.Println("-------------------")
@@ -205,19 +246,30 @@ func main() {
 		clearTerminal()
 
 		if choice == "1" {
-			fmt.Print("Enter NORAD catalog ID: ")
-
-			var input string
-			fmt.Scanln(&input)
-
-			input = strings.TrimSpace(input)
-
-			id, err := strconv.Atoi(input)
-			if err != nil || id <= 0 {
-				fmt.Println("Enter a valid NORAD ID")
+			fmt.Println("Search Type")
+			fmt.Println("1. Norad ID")
+			fmt.Println("2. Name")
+			fmt.Println("\nSuggested satellites:")
+			fmt.Println("3. International Space Station")
+			fmt.Println("4. Hubble Space Telescope")
+			fmt.Println("5. Terra")
+			fmt.Print("\nChoose an option: ")
+			var choice int
+			fmt.Scanln(&choice)
+			if choice == 1 {
+				searchForSatellite("NoradID")
+			} else if choice == 2 {
+				searchForSatellite("Name")
+			}  else if choice == 3 {
+				lookUpSatellite("https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=JSON")
+			}  else if choice == 4 {
+				lookUpSatellite("https://celestrak.org/NORAD/elements/gp.php?CATNR=20580&FORMAT=JSON")
+			} else if choice == 5 {
+				lookUpSatellite("https://celestrak.org/NORAD/elements/gp.php?CATNR=25994&FORMAT=JSON")
+			} else {
+				fmt.Println("Invalid option")
 				return
 			}
-			lookUpSatellite(id)
 		} else if choice == "2" {
 			viewWatchlist()
 		} else if choice == "3" {
