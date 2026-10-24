@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"math/rand/v2"
 	"net/http"
 	"os"
@@ -120,25 +121,62 @@ func lookUpSatellite(url string) {
 }
 
 func displaySatellite(s Satellite) {
-	fmt.Println("Satellite Details")
-	fmt.Println("Object Name:", s.ObjectName)
-	fmt.Println("Object ID:", s.ObjectID)
-	fmt.Println("Epoch:", s.Epoch)
-	fmt.Println("Mean Motion:", s.MeanMotion)
-	fmt.Println("Eccentricity:", s.Eccentricity)
-	fmt.Println("Inclination:", s.Inclination)
-	fmt.Println("RA Of Ascending Node:", s.RaOfAscNode)
-	fmt.Println("Argument of Pericenter:", s.ArgOfPericenter)
-	fmt.Println("Mean Anomaly:", s.MeanAnomaly)
-	fmt.Println("Ephemeris Type:", s.EphemerisType)
-	fmt.Println("Classification Type:", s.ClassificationType)
-	fmt.Println("NORAD CATALOG ID:", s.NORADCatID)
-	fmt.Println("Element Set Number:", s.ElementSetNo)
-	fmt.Println("Revolution at Epoch:", s.RevAtEpoch)
-	fmt.Println("BSTAR:", s.BSTAR)
-	fmt.Println("Mean Motion Derivative:", s.MeanMotionDot)
-	fmt.Println("Second Mean Motion Derivative:", s.MeanMotionDDot)
+	fmt.Println("-------------------")
+	fmt.Println(" Satellite Details")
+	fmt.Println("-------------------")
+	fmt.Println("Epoch: ", s.Epoch)
+	fmt.Println("Name: ", s.ObjectName)
+	fmt.Println("Object ID: ", s.ObjectID)
+	fmt.Println("NORAD ID: ", s.NORADCatID)
+	fmt.Printf("Classification: %s\n", s.ClassificationType)
+	fmt.Printf("Element set number: %d\n", s.ElementSetNo)
+	fmt.Printf("Ephemeris type: %d\n", s.EphemerisType)
 	fmt.Println()
+	fmt.Println("----------------------------")
+	fmt.Println(" Basic Orbital Measurements")
+	fmt.Println("----------------------------")
+	fmt.Printf("Orbits per day: %.2f\n", s.MeanMotion)
+	fmt.Printf("Orbital Period: ≈ %.2f minutes (%.0fh %.0fm %.0fs)\n", 1440/s.MeanMotion, math.Floor(1440/s.MeanMotion/60), math.Mod(math.Floor(1440/s.MeanMotion), 60), math.Mod(math.Round(1440/s.MeanMotion*60), 60))
+	fmt.Printf("Inclination: %.2f ", s.Inclination)
+	if s.Inclination < 30 {
+		fmt.Println("(Low inclination)")
+	} else if s.Inclination < 60 {
+		fmt.Println("(Moderate inclination)")
+	} else {
+		fmt.Println("(High inclination)")
+	}
+	fmt.Println("Revolutions at epoch: ", s.RevAtEpoch)
+	fmt.Println("--------------------------")
+	fmt.Println(" Orbit shape and geometry")
+	fmt.Println("--------------------------")
+	fmt.Printf("Eccentricity: %.6f ", s.Eccentricity)
+	if s.Eccentricity < 0.01 {
+		fmt.Println("(Nearly Circular)")
+	} else if s.Eccentricity < 0.1 {
+		fmt.Println("(Slightly Elliptical)")
+	} else {
+		fmt.Println("(Elliptical)")
+	}
+	const earthMu = 398600.4418
+  const earthRadius = 6378.137
+	meanMotionRad := s.MeanMotion * 2 * math.Pi / 86400
+	semiMajorAxis := math.Cbrt(earthMu / math.Pow(meanMotionRad, 2))
+	perigee := semiMajorAxis*(1-s.Eccentricity) - earthRadius
+	apogee := semiMajorAxis*(1+s.Eccentricity) - earthRadius
+	fmt.Printf("Semi-major axis: ≈ %.2f km\n", semiMajorAxis)
+	fmt.Printf("Perigee altitude: ≈ %.2f km\n", perigee)
+	fmt.Printf("Apogee altitude: ≈ %.2f km\n", apogee)
+	fmt.Printf("Altitude range: ≈ %.2f km\n", apogee-perigee)
+	averageAltitude := math.Floor((semiMajorAxis-earthRadius)*100)/100
+	fmt.Printf("Average altitude: ≈ %f km\n", averageAltitude)
+	if averageAltitude < 2000 {
+		fmt.Println("Orbit region: Low Earth Orbit (LEO)")
+	} else if averageAltitude < 35786 {
+		fmt.Println("Orbit region: Medium Earth Orbit (MEO)")
+	} else {
+		fmt.Println("Orbit region: High Earth Orbit (HEO)")
+	}
+
 }
 
 func viewWatchlist() {
@@ -146,9 +184,9 @@ func viewWatchlist() {
 		fmt.Println("Watchlist is empty")
 		return
 	}
-	fmt.Println("-------------------")
-	fmt.Println(" Satellite Tracker")
-	fmt.Println("-------------------")
+	fmt.Println("-----------")
+	fmt.Println(" Watchlist")
+	fmt.Println("-----------")
 	fmt.Println("0. Back to main menu")
 	for i, s := range watchlist {
 		fmt.Printf("%d. %s\n", i+1, s.ObjectName)
