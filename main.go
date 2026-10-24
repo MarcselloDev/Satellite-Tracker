@@ -36,31 +36,32 @@ type Satellite struct {
 var satellite Satellite
 var satellites []Satellite
 var watchlist []Satellite
- var suggestedSatellites = []Satellite{
-		{ObjectName: "ISS (ZARYA)", NORADCatID: 25544},
-		{ObjectName: "CSS (TIANHE)", NORADCatID: 48274},
-		{ObjectName: "HST", NORADCatID: 20580},
-		{ObjectName: "AURA", NORADCatID: 28376},
-		{ObjectName: "NOAA 20", NORADCatID: 43013},
-		{ObjectName: "SUOMI NPP", NORADCatID: 37849},
-		{ObjectName: "TERRA", NORADCatID: 25994},
-		{ObjectName: "AQUA", NORADCatID: 27424},
-		{ObjectName: "LANDSAT 8", NORADCatID: 39084},
-		{ObjectName: "LANDSAT 9", NORADCatID: 49260},
-		{ObjectName: "SENTINEL-2A", NORADCatID: 40697},
-		{ObjectName: "ICESAT-2", NORADCatID: 43613},
-		{ObjectName: "COSMOS 2564 (GLONASS)", NORADCatID: 54379},
-		{ObjectName: "GSAT0101 (PRN E11)", NORADCatID: 37846},
-		{ObjectName: "BEIDOU 3 M1", NORADCatID: 42984},
-		{ObjectName: "STARLINK-1007", NORADCatID: 44713},
-		{ObjectName: "STARLINK-30299", NORADCatID: 59379},
-		{ObjectName: "ONEWEB-0010", NORADCatID: 44058},
-		{ObjectName: "IRIDIUM 100", NORADCatID: 43059},
-		{ObjectName: "GOES 18", NORADCatID: 51850},
-		{ObjectName: "SENTINEL-2B", NORADCatID: 42063},
-		{ObjectName: "SWOT", NORADCatID: 54740},
-		{ObjectName: "AMAZONAS 5", NORADCatID: 42934},
-	}
+var suggestedSatellites = []Satellite{
+	{ObjectName: "ISS (ZARYA)", NORADCatID: 25544},
+	{ObjectName: "CSS (TIANHE)", NORADCatID: 48274},
+	{ObjectName: "HST", NORADCatID: 20580},
+	{ObjectName: "AURA", NORADCatID: 28376},
+	{ObjectName: "NOAA 20", NORADCatID: 43013},
+	{ObjectName: "SUOMI NPP", NORADCatID: 37849},
+	{ObjectName: "TERRA", NORADCatID: 25994},
+	{ObjectName: "AQUA", NORADCatID: 27424},
+	{ObjectName: "LANDSAT 8", NORADCatID: 39084},
+	{ObjectName: "LANDSAT 9", NORADCatID: 49260},
+	{ObjectName: "SENTINEL-2A", NORADCatID: 40697},
+	{ObjectName: "ICESAT-2", NORADCatID: 43613},
+	{ObjectName: "COSMOS 2564 (GLONASS)", NORADCatID: 54379},
+	{ObjectName: "GSAT0101 (PRN E11)", NORADCatID: 37846},
+	{ObjectName: "BEIDOU 3 M1", NORADCatID: 42984},
+	{ObjectName: "STARLINK-1007", NORADCatID: 44713},
+	{ObjectName: "STARLINK-30299", NORADCatID: 59379},
+	{ObjectName: "ONEWEB-0010", NORADCatID: 44058},
+	{ObjectName: "IRIDIUM 100", NORADCatID: 43059},
+	{ObjectName: "GOES 18", NORADCatID: 51850},
+	{ObjectName: "SENTINEL-2B", NORADCatID: 42063},
+	{ObjectName: "SWOT", NORADCatID: 54740},
+	{ObjectName: "AMAZONAS 5", NORADCatID: 42934},
+}
+var offlineMode = false
 
 func lookUpSatellite(url string) {
 	clearTerminal()
@@ -124,10 +125,10 @@ func displaySatellite(s Satellite) {
 	fmt.Println("-------------------")
 	fmt.Println(" Satellite Details")
 	fmt.Println("-------------------")
-	fmt.Println("Epoch: ", s.Epoch)
-	fmt.Println("Name: ", s.ObjectName)
-	fmt.Println("Object ID: ", s.ObjectID)
-	fmt.Println("NORAD ID: ", s.NORADCatID)
+	fmt.Println("Epoch:", s.Epoch)
+	fmt.Println("Name:", s.ObjectName)
+	fmt.Println("Object ID:", s.ObjectID)
+	fmt.Println("NORAD ID:", s.NORADCatID)
 	fmt.Printf("Classification: %s\n", s.ClassificationType)
 	fmt.Printf("Element set number: %d\n", s.ElementSetNo)
 	fmt.Printf("Ephemeris type: %d\n", s.EphemerisType)
@@ -145,7 +146,8 @@ func displaySatellite(s Satellite) {
 	} else {
 		fmt.Println("(High inclination)")
 	}
-	fmt.Println("Revolutions at epoch: ", s.RevAtEpoch)
+	fmt.Println("Revolutions at epoch:", s.RevAtEpoch)
+	fmt.Println()
 	fmt.Println("--------------------------")
 	fmt.Println(" Orbit shape and geometry")
 	fmt.Println("--------------------------")
@@ -167,8 +169,8 @@ func displaySatellite(s Satellite) {
 	fmt.Printf("Perigee altitude: ≈ %.2f km\n", perigee)
 	fmt.Printf("Apogee altitude: ≈ %.2f km\n", apogee)
 	fmt.Printf("Altitude range: ≈ %.2f km\n", apogee-perigee)
-	averageAltitude := math.Floor((semiMajorAxis-earthRadius)*100)/100
-	fmt.Printf("Average altitude: ≈ %f km\n", averageAltitude)
+	averageAltitude := semiMajorAxis-earthRadius
+	fmt.Printf("Average altitude: ≈ %.2f km\n", averageAltitude)
 	if averageAltitude < 2000 {
 		fmt.Println("Orbit region: Low Earth Orbit (LEO)")
 	} else if averageAltitude < 35786 {
@@ -176,7 +178,6 @@ func displaySatellite(s Satellite) {
 	} else {
 		fmt.Println("Orbit region: High Earth Orbit (HEO)")
 	}
-
 }
 
 func viewWatchlist() {
@@ -211,11 +212,15 @@ func viewWatchlist() {
 		fmt.Scanln(&choice)
 		clearTerminal()
 		if choice == "1" {
-			id := watchlist[satelliteNumber-1].NORADCatID
-			lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=JSON", id))
-			if satellite.NORADCatID == id {
-				watchlist[satelliteNumber-1] = satellite
-				saveWatchlist()
+			if !offlineMode {
+				id := watchlist[satelliteNumber-1].NORADCatID
+				lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=JSON", id))
+				if satellite.NORADCatID == id {
+					watchlist[satelliteNumber-1] = satellite
+					saveWatchlist()
+				}
+			} else {
+				displaySatellite(watchlist[satelliteNumber-1])
 			}
 			viewWatchlist()
 		} else if choice == "2" {
@@ -292,73 +297,102 @@ func main() {
 		return
 	}
 	for {
-		fmt.Println("-------------------")
-		fmt.Println(" Satellite Tracker")
-		fmt.Println("-------------------")
+		if !offlineMode {
+			fmt.Println("-------------------")
+			fmt.Println(" Satellite Tracker")
+			fmt.Println("-------------------")
 
-		fmt.Println("1. Look up a satellite")
-		fmt.Println("2. View watchlist")
-		fmt.Println("3. Exit")
-		if satellite.ObjectName != "" {
-			alreadyExists := false
-			for _, s := range watchlist {
-				if s.NORADCatID == satellite.NORADCatID {
-					alreadyExists = true
-					break
+			fmt.Println("1. Look up a satellite")
+			fmt.Println("2. View watchlist")
+			fmt.Println("3. Exit")
+			fmt.Println("4. Offline Mode")
+			if satellite.ObjectName != "" {
+				alreadyExists := false
+				for _, s := range watchlist {
+					if s.NORADCatID == satellite.NORADCatID {
+						alreadyExists = true
+						break
+					}
+				}
+				if !alreadyExists {
+					fmt.Printf("5. Add %s to watchlist\n", satellite.ObjectName)
 				}
 			}
-			if !alreadyExists {
-				fmt.Printf("4. Add %s to watchlist\n", satellite.ObjectName)
-			}
-		}
-		fmt.Println()
-		fmt.Print("Choose an option: ")
+			fmt.Println()
+			fmt.Print("Choose an option: ")
 
-		var choice string
-		fmt.Scanln(&choice)
-		clearTerminal()
-
-		if choice == "1" {
-			fmt.Println("Search Type")
-			fmt.Println("1. NORAD ID")
-			fmt.Println("2. Name")
-			fmt.Println("\nSuggested satellites:")
-			suggestions := suggestSatellites()
-			for i,s := range suggestions{
-				fmt.Printf("%d. %s \n", i+3, s.ObjectName)
-			}
-			fmt.Print("\nChoose an option: ")
-			var choice int
+			var choice string
 			fmt.Scanln(&choice)
-			if choice == 1 {
-				searchForSatellite("NoradID")
-			} else if choice == 2 {
-				searchForSatellite("Name")
-			}  else if 3 <= choice && choice <= 5 {
-				lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=JSON", suggestions[choice-3].NORADCatID))
+			clearTerminal()
+
+			if choice == "1" {
+				fmt.Println("Search Type")
+				fmt.Println("1. NORAD ID")
+				fmt.Println("2. Name")
+				fmt.Println("\nSuggested satellites:")
+				suggestions := suggestSatellites()
+				for i,s := range suggestions{
+					fmt.Printf("%d. %s \n", i+3, s.ObjectName)
+				}
+				fmt.Print("\nChoose an option: ")
+				var choice int
+				fmt.Scanln(&choice)
+				if choice == 1 {
+					searchForSatellite("NoradID")
+				} else if choice == 2 {
+					searchForSatellite("Name")
+				}  else if 3 <= choice && choice <= 5 {
+					lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=JSON", suggestions[choice-3].NORADCatID))
+				} else {
+					fmt.Println("Invalid option")
+				}
+			} else if choice == "2" {
+				viewWatchlist()
+			} else if choice == "3" {
+				fmt.Println("Goodbye")
+				return
+			} else if choice == "4" {
+				offlineMode = true
+			} else if choice == "5" && satellite.ObjectName != ""{
+				alreadyExists := false
+				for _, s := range watchlist {
+					if s.NORADCatID == satellite.NORADCatID {
+						alreadyExists = true
+						break
+					}
+				}
+				if !alreadyExists {
+					watchlist = append(watchlist, satellite)
+					saveWatchlist()
+					fmt.Printf("%s added to watchlist\n", satellite.ObjectName)
+				}
 			} else {
 				fmt.Println("Invalid option")
 			}
-		} else if choice == "2" {
-			viewWatchlist()
-		} else if choice == "3" {
-			fmt.Println("Goodbye")
-			return
-		} else if choice == "4" && satellite.ObjectName != ""{
-			alreadyExists := false
-			for _, s := range watchlist {
-				if s.NORADCatID == satellite.NORADCatID {
-					alreadyExists = true
-					break
-				}
-			}
-			if !alreadyExists {
-				watchlist = append(watchlist, satellite)
-				saveWatchlist()
-				fmt.Printf("%s added to watchlist\n", satellite.ObjectName)
-			}
 		} else {
-			fmt.Println("Invalid option")
+			fmt.Println("----------------------------------")
+			fmt.Println(" Satellite Tracker - Offline Mode")
+			fmt.Println("----------------------------------")
+
+			fmt.Println("1. Normal Mode")
+			fmt.Println("2. View watchlist")
+			fmt.Println("3. Exit")
+			fmt.Println()
+			fmt.Print("Choose an option: ")
+
+			var choice string
+			fmt.Scanln(&choice)
+			clearTerminal()
+			if choice == "1" {
+				offlineMode = false
+			} else if choice == "2" {
+				viewWatchlist()
+			} else if choice == "3" {
+				fmt.Println("Goodbye")
+				return
+			} else {
+				fmt.Println("Invalid option")
+			}
 		}
 	}
 }
