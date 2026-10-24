@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"os"
 	"strconv"
@@ -34,6 +35,31 @@ type Satellite struct {
 var satellite Satellite
 var satellites []Satellite
 var watchlist []Satellite
+ var suggestedSatellites = []Satellite{
+		{ObjectName: "ISS (ZARYA)", NORADCatID: 25544},
+		{ObjectName: "CSS (TIANHE)", NORADCatID: 48274},
+		{ObjectName: "HST", NORADCatID: 20580},
+		{ObjectName: "AURA", NORADCatID: 28376},
+		{ObjectName: "NOAA 20", NORADCatID: 43013},
+		{ObjectName: "SUOMI NPP", NORADCatID: 37849},
+		{ObjectName: "TERRA", NORADCatID: 25994},
+		{ObjectName: "AQUA", NORADCatID: 27424},
+		{ObjectName: "LANDSAT 8", NORADCatID: 39084},
+		{ObjectName: "LANDSAT 9", NORADCatID: 49260},
+		{ObjectName: "SENTINEL-2A", NORADCatID: 40697},
+		{ObjectName: "ICESAT-2", NORADCatID: 43613},
+		{ObjectName: "COSMOS 2564 (GLONASS)", NORADCatID: 54379},
+		{ObjectName: "GSAT0101 (PRN E11)", NORADCatID: 37846},
+		{ObjectName: "BEIDOU 3 M1", NORADCatID: 42984},
+		{ObjectName: "STARLINK-1007", NORADCatID: 44713},
+		{ObjectName: "STARLINK-30299", NORADCatID: 59379},
+		{ObjectName: "ONEWEB-0010", NORADCatID: 44058},
+		{ObjectName: "IRIDIUM 100", NORADCatID: 43059},
+		{ObjectName: "GOES 18", NORADCatID: 51850},
+		{ObjectName: "SENTINEL-2B", NORADCatID: 42063},
+		{ObjectName: "SWOT", NORADCatID: 54740},
+		{ObjectName: "AMAZONAS 5", NORADCatID: 42934},
+	}
 
 func lookUpSatellite(url string) {
 	clearTerminal()
@@ -206,6 +232,15 @@ func searchForSatellite(searchType string) {
 	}
 }
 
+func suggestSatellites() []Satellite {	
+	indexes := rand.Perm(len(suggestedSatellites))[:3]
+	var suggestions []Satellite
+	for _, i := range indexes{
+		suggestions = append(suggestions, suggestedSatellites[i])
+	}
+	return suggestions
+}
+
 func main() {
 	data, err := os.ReadFile("watchlist.json")
 	if err != nil {
@@ -247,12 +282,13 @@ func main() {
 
 		if choice == "1" {
 			fmt.Println("Search Type")
-			fmt.Println("1. Norad ID")
+			fmt.Println("1. NORAD ID")
 			fmt.Println("2. Name")
 			fmt.Println("\nSuggested satellites:")
-			fmt.Println("3. International Space Station")
-			fmt.Println("4. Hubble Space Telescope")
-			fmt.Println("5. Terra")
+			suggestions := suggestSatellites()
+			for i,s := range suggestions{
+				fmt.Printf("%d. %s \n", i+3, s.ObjectName)
+			}
 			fmt.Print("\nChoose an option: ")
 			var choice int
 			fmt.Scanln(&choice)
@@ -260,15 +296,10 @@ func main() {
 				searchForSatellite("NoradID")
 			} else if choice == 2 {
 				searchForSatellite("Name")
-			}  else if choice == 3 {
-				lookUpSatellite("https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=JSON")
-			}  else if choice == 4 {
-				lookUpSatellite("https://celestrak.org/NORAD/elements/gp.php?CATNR=20580&FORMAT=JSON")
-			} else if choice == 5 {
-				lookUpSatellite("https://celestrak.org/NORAD/elements/gp.php?CATNR=25994&FORMAT=JSON")
+			}  else if 3 <= choice && choice <= 5 {
+				lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=JSON", suggestions[choice-3].NORADCatID))
 			} else {
 				fmt.Println("Invalid option")
-				return
 			}
 		} else if choice == "2" {
 			viewWatchlist()
@@ -286,7 +317,7 @@ func main() {
 			if !alreadyExists {
 				watchlist = append(watchlist, satellite)
 				saveWatchlist()
-				fmt.Printf("%s added to watchlist\n\n", satellite.ObjectName)
+				fmt.Printf("%s added to watchlist\n", satellite.ObjectName)
 			}
 		} else {
 			fmt.Println("Invalid option")
