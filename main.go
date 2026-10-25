@@ -63,7 +63,7 @@ var suggestedSatellites = []Satellite{
 }
 var offlineMode = false
 
-func lookUpSatellite(url string) {
+func lookUpSatellite(url string) bool {
 	clearTerminal()
 	fmt.Println("Fetching satellite data...")
 	client := http.Client{
@@ -73,36 +73,37 @@ func lookUpSatellite(url string) {
 	response, err := client.Get(url)
 	if err != nil {
 		fmt.Println("Could not contact CelesTrak: ", err)
-		return
+		return false
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		fmt.Printf("CelesTrak returned HTTP status %d. \n", response.StatusCode)
 		fmt.Println("No Satellite data was retrieved")
-		return
+		return false
 	}
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		fmt.Println("Could not read response body: ", err)
-		return
+		return false
 	}
 
 	err = json.Unmarshal(body, &satellites)
 	if err != nil {
 		fmt.Println("Could not interpret the satellite data: ", err)
-		return
+		return false
 	}
 
 	if len(satellites) == 0 {
 		fmt.Println("No satellite data found.")
-		return
+		return false
 	}
 	if len(satellites) == 1 {
 		satellite = satellites[0]
 		clearTerminal()
 		displaySatellite(satellite)
+		return true
 	} else {
 		for i, s := range satellites {
 			fmt.Printf("%d. %s, (%d)\n", i+1, s.ObjectName, s.NORADCatID)
@@ -112,12 +113,12 @@ func lookUpSatellite(url string) {
 			fmt.Scanln(&choice)
 			if choice < 1 || choice > len(satellites) {
 				fmt.Println("Invalid option")
-				return
+				return false
 			}
 			satellite = satellites[choice-1]
 			clearTerminal()
 			displaySatellite(satellite)
-			
+			return true
 	}
 }
 
@@ -178,6 +179,81 @@ func displaySatellite(s Satellite) {
 	} else {
 		fmt.Println("Orbit region: High Earth Orbit (HEO)")
 	}
+}
+
+func compareSatellites(s1, s2 Satellite) {
+	fmt.Println("-------------------")
+	fmt.Println(" Satellite Details")
+	fmt.Println("-------------------")
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Epoch", s1.Epoch, s2.Epoch)
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Name", s1.ObjectName, s2.ObjectName)
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Object ID", s1.ObjectID, s2.ObjectID)
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "NORAD ID", strconv.Itoa(s1.NORADCatID), strconv.Itoa(s2.NORADCatID))
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Classification", fmt.Sprintf("%s", s1.ClassificationType), fmt.Sprintf("%s", s2.ClassificationType))
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Element set number", strconv.Itoa(s1.ElementSetNo), strconv.Itoa(s2.ElementSetNo))
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Ephemeris type", fmt.Sprintf("%d", s1.EphemerisType), fmt.Sprintf("%d", s2.EphemerisType))
+	fmt.Println()
+	fmt.Println("----------------------------")
+	fmt.Println(" Basic Orbital Measurements")
+	fmt.Println("----------------------------")
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Orbits per day", fmt.Sprintf("%.2f", s1.MeanMotion), fmt.Sprintf("%.2f", s2.MeanMotion))
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Orbital Period", fmt.Sprintf("%.2f min (%.0fh %.0fm %.0fs)", 1440/s1.MeanMotion, math.Floor(1440/s1.MeanMotion/60), math.Mod(math.Floor(1440/s1.MeanMotion), 60), math.Mod(math.Round(1440/s1.MeanMotion*60), 60)), fmt.Sprintf("%.2f min (%.0fh %.0fm %.0fs)", 1440/s2.MeanMotion, math.Floor(1440/s2.MeanMotion/60), math.Mod(math.Floor(1440/s2.MeanMotion), 60), math.Mod(math.Round(1440/s2.MeanMotion*60), 60)))
+	var s1Inclination string
+	if s1.Inclination < 30 {
+		s1Inclination = "(Low)"
+	} else if s1.Inclination < 60 {
+		s1Inclination = "(Moderate)"
+	} else {
+		s1Inclination = "(High)"
+	}
+	var s2Inclination string
+	if s2.Inclination < 30 {
+		s2Inclination = "(Low)"
+	} else if s2.Inclination < 60 {
+		s2Inclination = "(Moderate)"
+	} else {
+		s2Inclination = "(High)"
+	}
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Inclination", fmt.Sprintf("%.2f %s", s1.Inclination, s1Inclination), fmt.Sprintf("%.2f %s", s2.Inclination, s2Inclination))
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Revolutions at Epoch", strconv.Itoa(s1.RevAtEpoch), strconv.Itoa(s2.RevAtEpoch))
+	fmt.Println()
+	fmt.Println("--------------------------")
+	fmt.Println(" Orbit shape and geometry")
+	fmt.Println("--------------------------")
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Eccentricity", fmt.Sprintf("%.6f", s1.Eccentricity), fmt.Sprintf("%.6f", s2.Eccentricity))
+	const earthMu = 398600.4418
+  const earthRadius = 6378.137
+	s1meanMotionRad := s1.MeanMotion * 2 * math.Pi / 86400
+	s1semiMajorAxis := math.Cbrt(earthMu / math.Pow(s1meanMotionRad, 2))
+	s1perigee := s1semiMajorAxis*(1-s1.Eccentricity) - earthRadius
+	s1apogee := s1semiMajorAxis*(1+s1.Eccentricity) - earthRadius
+	s1averageAltitude := s1semiMajorAxis-earthRadius
+	s2meanMotionRad := s2.MeanMotion * 2 * math.Pi / 86400
+	s2semiMajorAxis := math.Cbrt(earthMu / math.Pow(s2meanMotionRad, 2))
+	s2perigee := s2semiMajorAxis*(1-s2.Eccentricity) - earthRadius
+	s2apogee := s2semiMajorAxis*(1+s2.Eccentricity) - earthRadius
+	s2averageAltitude := s2semiMajorAxis-earthRadius
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Semi-major axis", fmt.Sprintf("%.2f", s1semiMajorAxis), fmt.Sprintf("%.2f", s2semiMajorAxis))
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Perigee altitude", fmt.Sprintf("%.2f", s1perigee), fmt.Sprintf("%.2f", s2perigee))
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Apogee altitude", fmt.Sprintf("%.2f", s1apogee), fmt.Sprintf("%.2f", s2apogee))
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Altitude range", fmt.Sprintf("%.2f", s1apogee-s1perigee), fmt.Sprintf("%.2f", s2apogee-s2perigee))
+	var s1OrbitRange string
+	if s1averageAltitude < 2000 {
+		s1OrbitRange = "(LEO)"
+	} else if s1averageAltitude < 35786 {
+		s1OrbitRange = "(MEO)"
+	} else {
+		s1OrbitRange = "(HEO)"
+	}
+	var s2OrbitRange string
+	if s2averageAltitude < 2000 {
+		s2OrbitRange = "(LEO)"
+	} else if s2averageAltitude < 35786 {
+		s2OrbitRange = "(MEO)"
+	} else {
+		s2OrbitRange = "(HEO)"
+	}
+	fmt.Printf("%-25.25s | %-25.25s | %-25.25s\n", "Average altitude", fmt.Sprintf("%.2f %s", s1averageAltitude, s1OrbitRange), fmt.Sprintf("%.2f %s", s2averageAltitude, s2OrbitRange))
 }
 
 func viewWatchlist() {
@@ -253,7 +329,7 @@ func clearTerminal() {
 	fmt.Print("\033[H\033[2J\033[3J")
 }
 
-func searchForSatellite(searchType string) {
+func searchForSatellite(searchType string) bool {
 	if searchType == "NoradID" {
 		fmt.Print("Enter NORAD catalog ID: ")
 	} else if searchType == "Name" {
@@ -267,12 +343,13 @@ func searchForSatellite(searchType string) {
 		id, err := strconv.Atoi(input)
 		if err != nil || id <= 0 && searchType == "NoradID" {
 			fmt.Println("Enter a valid NORAD ID")
-			return
+			return false
 		}
-		lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=JSON", id))
+		return lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=JSON", id))
 	} else if searchType == "Name" {
-		lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?NAME=%s&FORMAT=JSON", input))
+		return lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?NAME=%s&FORMAT=JSON", input))
 	}
+	return false
 }
 
 func suggestSatellites() []Satellite {	
@@ -303,9 +380,10 @@ func main() {
 			fmt.Println("-------------------")
 
 			fmt.Println("1. Look up a satellite")
-			fmt.Println("2. View watchlist")
-			fmt.Println("3. Exit")
-			fmt.Println("4. Offline Mode")
+			fmt.Println("2. Compare satellites")
+			fmt.Println("3. View watchlist")
+			fmt.Println("4. Exit")
+			fmt.Println("5. Offline Mode")
 			if satellite.ObjectName != "" {
 				alreadyExists := false
 				for _, s := range watchlist {
@@ -315,7 +393,7 @@ func main() {
 					}
 				}
 				if !alreadyExists {
-					fmt.Printf("5. Add %s to watchlist\n", satellite.ObjectName)
+					fmt.Printf("6. Add %s to watchlist\n", satellite.ObjectName)
 				}
 			}
 			fmt.Println()
@@ -347,13 +425,57 @@ func main() {
 					fmt.Println("Invalid option")
 				}
 			} else if choice == "2" {
-				viewWatchlist()
+				var s1 Satellite
+				var s2 Satellite
+				success := false
+				for attempt := 1; attempt <= 5; attempt++{
+					fmt.Println("Satellite 1")
+					if !searchForSatellite("NoradID") {
+						fmt.Println()
+						continue
+					}
+					s1 = satellite
+					success = true
+					break
+				}
+				clearTerminal()
+				if !success {
+					clearTerminal()
+					fmt.Println("Too many failed attempts. Returning to main menu.")
+					continue
+				}
+				success = false
+				for attempt := 1; attempt <= 5; attempt++{
+					fmt.Println("Satellite 2")
+					if !searchForSatellite("NoradID") {
+						fmt.Println()
+						continue
+					}
+					s2 = satellite
+					if s1.NORADCatID != s2.NORADCatID{
+						clearTerminal()
+						success = true
+						break
+					} else {
+						clearTerminal()
+						fmt.Println("Select two different satellites")
+						continue
+					}
+				}
+				if !success {
+					clearTerminal()
+					fmt.Println("Too many failed attempts. Returning to main menu.")
+					continue
+				}
+				compareSatellites(s1, s2)
 			} else if choice == "3" {
+				viewWatchlist()
+			} else if choice == "4" {
 				fmt.Println("Goodbye")
 				return
-			} else if choice == "4" {
+			} else if choice == "5" {
 				offlineMode = true
-			} else if choice == "5" && satellite.ObjectName != ""{
+			} else if choice == "6" && satellite.ObjectName != ""{
 				alreadyExists := false
 				for _, s := range watchlist {
 					if s.NORADCatID == satellite.NORADCatID {
