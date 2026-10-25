@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math"
 	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -336,9 +338,18 @@ func searchForSatellite(searchType string) bool {
 		fmt.Print("Enter satellite name: ")
 	}
 	var input string
-	fmt.Scanln(&input)
-
+	reader := bufio.NewReader(os.Stdin)
+	input, err := reader.ReadString('\n')
+	if err != nil && len(input) == 0 {
+		fmt.Println("Could not read input")
+		return false
+	}
 	input = strings.TrimSpace(input)
+	if input == "" {
+		fmt.Println("Name cannot be empty")
+		return false
+	}
+
 	if searchType == "NoradID" {
 		id, err := strconv.Atoi(input)
 		if err != nil || id <= 0 && searchType == "NoradID" {
@@ -347,7 +358,7 @@ func searchForSatellite(searchType string) bool {
 		}
 		return lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?CATNR=%d&FORMAT=JSON", id))
 	} else if searchType == "Name" {
-		return lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?NAME=%s&FORMAT=JSON", input))
+		return lookUpSatellite(fmt.Sprintf("https://celestrak.org/NORAD/elements/gp.php?NAME=%s&FORMAT=JSON", url.QueryEscape(input)))
 	}
 	return false
 }
